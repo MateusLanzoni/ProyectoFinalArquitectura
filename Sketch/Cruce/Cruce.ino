@@ -161,16 +161,27 @@ unsigned long tiempoInicioAmarillo;
 unsigned long tiempoInicioRojo;
 
 // Estados de los semáforos
-enum EstadoSemaforo {ROJO, VERDE_INTERMITENTE, VERDE, AMARILLO};
 EstadoSemaforo estadoSemaforoActual = ROJO;
+enum EstadoSemaforo { ROJO, VERDE, AMARILLO, INTERMITENTE };
 
 struct Semaforo {
   int pinRojo;
   int pinVerde;
   int pinAmarillo;
   EstadoSemaforo estado;
-  unsigned long tiempoCambio;  // Tiempo en el que el semáforo cambió al estado actual
+  unsigned long tiempoCambio;
 };
+
+void cambiarEstado(Semaforo &semaforo, EstadoSemaforo nuevoEstado);
+void actualizarSemaforo(Semaforo &semaforo);
+
+void cambiarEstado(Semaforo &semaforo, EstadoSemaforo nuevoEstado) {
+  digitalWrite(semaforo.pinRojo, LOW);
+  digitalWrite(semaforo.pinVerde, LOW);
+  digitalWrite(semaforo.pinAmarillo, LOW);
+}
+
+
 
 Semaforo semaforo1 = {2, 3, 4, ROJO, 0};
 bool configuracionCompleta = false;
