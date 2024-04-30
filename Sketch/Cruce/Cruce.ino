@@ -6,21 +6,13 @@ const int sens3 = A2;
 const int sens4 = A3;
 
 // Definición de los pines para los LEDs de los semáforos
-const int R1 = 13;  // Rojo Semáforo 1
-const int G1 = 12;  // Verde Semáforo 1
-const int Y1 = 11;  // Amarillo Semáforo 1
+const int R1 = 13;  // Rojo Semáforo 1 y 3
+const int G1 = 12;  // Verde Semáforo 1 y 3
+const int Y1 = 11;  // Amarillo Semáforo 1 y 3
 
-const int R2 = 10;  // Rojo Semáforo 2
-const int G2 = 9;   // Verde Semáforo 2
-const int Y2 = 8;   // Amarillo Semáforo 2
-
-const int R3 = 7;   // Rojo Semáforo 3
-const int G3 = 6;   // Verde Semáforo 3
-const int Y3 = 5;   // Amarillo Semáforo 3
-
-const int R4 = 4;   // Rojo Semáforo 4
-const int G4 = 3;   // Verde Semáforo 4
-const int Y4 = 2;   // Amarillo Semáforo 4
+const int R2 = 10;  // Rojo Semáforo 2 y 4
+const int G2 = 9;   // Verde Semáforo 2 y 4
+const int Y2 = 8;   // Amarillo Semáforo 2 y 4
 
 // Tiempo inicial en verde. Podría ser configurado por un teclado numérico.
 int tiempoVerde = 30;  // Valor por defecto
@@ -45,16 +37,12 @@ void estadoSemaforo(int semaforo, char color) {
   // Apaga todos los LEDs de todos los semáforos
   digitalWrite(R1, LOW); digitalWrite(G1, LOW); digitalWrite(Y1, LOW);
   digitalWrite(R2, LOW); digitalWrite(G2, LOW); digitalWrite(Y2, LOW);
-  digitalWrite(R3, LOW); digitalWrite(G3, LOW); digitalWrite(Y3, LOW);
-  digitalWrite(R4, LOW); digitalWrite(G4, LOW); digitalWrite(Y4, LOW);
-  
+ 
   // Enciende el LED correspondiente al color y semáforo seleccionado
   int pinRojo, pinVerde, pinAmarillo;
   switch(semaforo) {
     case 1: pinRojo = R1; pinVerde = G1; pinAmarillo = Y1; break;
     case 2: pinRojo = R2; pinVerde = G2; pinAmarillo = Y2; break;
-    case 3: pinRojo = R3; pinVerde = G3; pinAmarillo = Y3; break;
-    case 4: pinRojo = R4; pinVerde = G4; pinAmarillo = Y4; break;
   }
 
   if(color == 'R') digitalWrite(pinRojo, HIGH);
@@ -72,14 +60,11 @@ void setup() {
   // Inicializa los pines de los semáforos
   pinMode(R1, OUTPUT); pinMode(G1, OUTPUT); pinMode(Y1, OUTPUT);
   pinMode(R2, OUTPUT); pinMode(G2, OUTPUT); pinMode(Y2, OUTPUT);
-  pinMode(R3, OUTPUT); pinMode(G3, OUTPUT); pinMode(Y3, OUTPUT);
-  pinMode(R4, OUTPUT); pinMode(G4, OUTPUT); pinMode(Y4, OUTPUT);
+ 
   
   // Configura los semáforos en rojo
   estadoSemaforo(1, 'R');
   estadoSemaforo(2, 'R');
-  estadoSemaforo(3, 'R');
-  estadoSemaforo(4, 'R');
 
    Serial.begin(9600);
   while (!Serial); // Para Leonardo/Micro/Zero
@@ -136,16 +121,6 @@ void apagarTodosLosSemaforos() {
   digitalWrite(R2, LOW);
   digitalWrite(G2, LOW);
   digitalWrite(Y2, LOW);
-
-  // Apagar LEDs de semáforo 3
-  digitalWrite(R3, LOW);
-  digitalWrite(G3, LOW);
-  digitalWrite(Y3, LOW);
-
-  // Apagar LEDs de semáforo 4
-  digitalWrite(R4, LOW);
-  digitalWrite(G4, LOW);
-  digitalWrite(Y4, LOW);
 }
 
 // Variables globales para controlar el estado del parpadeo
@@ -154,19 +129,21 @@ unsigned long ultimoCambioParpadeoVerde = 0; // Última vez que el LED cambió d
 const long intervaloParpadeo = 500; // Intervalo entre parpadeos en milisegundos
 
 void parpadeoVerde(int semaforo) {
- static unsigned long previousMillis = 0;
-  const long interval = 500; // intervalo de parpadeo de 500 ms
-  unsigned long currentMillis = millis();
+  unsigned long tiempoActual = millis();
+  
+  // Verifica si ha pasado suficiente tiempo para cambiar el estado del LED
+  if (tiempoActual - ultimoCambioParpadeoVerde >= intervaloParpadeo) {
+    // Cambia el estado del LED verde
+    estadoParpadeoVerde = !estadoParpadeoVerde;
+    
+    // Actualiza la última vez que el LED cambió de estado
+    ultimoCambioParpadeoVerde = tiempoActual;
 
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis; // guarda la última vez que se activó el parpadeo
-    estadoParpadeoVerde = !estadoParpadeoVerde; // cambiar estado de parpadeo
-    // Cambia el estado del LED verde basado en el semáforo y el estado actual del parpadeo
+    // Enciende o apaga el LED verde basado en el semáforo y el estado actual del parpadeo
     switch(numSemaforo) {
       case 1: digitalWrite(G1, estadoParpadeoVerde); break;
       case 2: digitalWrite(G2, estadoParpadeoVerde); break;
-      case 3: digitalWrite(G3, estadoParpadeoVerde); break;
-      case 4: digitalWrite(G4, estadoParpadeoVerde); break;
+      default: break; // En caso de un número de semáforo no válido
     }
   }
 }
@@ -187,24 +164,38 @@ unsigned long tiempoInicioRojo;
 enum EstadoSemaforo {ROJO, VERDE_INTERMITENTE, VERDE, AMARILLO};
 EstadoSemaforo estadoSemaforoActual = ROJO;
 
+struct Semaforo {
+  int pinRojo;
+  int pinVerde;
+  int pinAmarillo;
+  EstadoSemaforo estado;
+  unsigned long tiempoCambio;  // Tiempo en el que el semáforo cambió al estado actual
+};
+
+Semaforo semaforo1 = {2, 3, 4, ROJO, 0};
+bool configuracionCompleta = false;
 
 void loop() {
 
- unsigned long tiempoActual = millis();
+  if (!configuracionCompleta) {
+    leerTecladoYConfigurar();
+  } else {
+    unsigned long tiempoActual = millis();
 
   // Lee los sensores
   // Aquí, HIGH significa que un vehículo fue detectado
   bool vehicleAt1 = digitalRead(sens1) == HIGH;
   bool vehicleAt2 = digitalRead(sens2) == HIGH;
-  bool vehicleAt3 = digitalRead(sens3) == HIGH;
-  bool vehicleAt4 = digitalRead(sens4) == HIGH;
+
+  actualizarSemaforo(semaforo1);
+  actualizarSemaforo(semaforo2);
 
   // Comprobar la prioridad de los semáforos 1 y 3 primero
   if (vehicleAt1 && ultimoSemaforoConVerde != 1) {
     activarSemaforo(1);
     ultimoSemaforoConVerde = 1;
   } else if (vehicleAt3 && ultimoSemaforoConVerde != 3) {
-    activarSemaforo(3);
+    activarSemaforo(1);
     ultimoSemaforoConVerde = 3;
   } 
   // Si no hay vehículos en 1 y 3, comprobar 2 y 4
@@ -213,9 +204,10 @@ void loop() {
       activarSemaforo(2);
       ultimoSemaforoConVerde = 2;
     } else if (vehicleAt4 && ultimoSemaforoConVerde != 4) {
-      activarSemaforo(4);
+      activarSemaforo(2);
       ultimoSemaforoConVerde = 4;
     }
+
   }
   
   // Asumamos que simplemente vamos a alternar los semáforos en secuencia: 1, 2, 3, y 4.
@@ -229,9 +221,7 @@ void loop() {
   for(int semaforo = 1; semaforo <= 4; semaforo++) {
     // Verifica si hay un vehículo esperando
     if((semaforo == 1 && vehicleAt1) || 
-       (semaforo == 2 && vehicleAt2) ||
-       (semaforo == 3 && vehicleAt3) ||
-       (semaforo == 4 && vehicleAt4)) {
+       (semaforo == 2 && vehicleAt2)) {
       
       estadoSemaforo(semaforo, 'G'); // Semáforo en verde
       delay((tiempoVerde - 3) * 1000); // Espera el tiempo de verde menos los 3 segundos de intermitencia
@@ -246,6 +236,8 @@ void loop() {
       delay(tiempoAmarillo * 1000); // Espera el tiempo de amarillo
     }
   }
+
+
   switch(estadoSemaforoActual) {
     case ROJO:
       if (tiempoActual - tiempoInicioCicloActual >= tiempoRojo) {
@@ -283,5 +275,90 @@ void loop() {
         estadoSemaforoActual = ROJO;
       }
       break;
+  }
+
+  }
+
+}
+
+void leerTecladoYConfigurar() {
+  static String input = "";
+  char key = keypad.getKey();
+  
+  if (key != NO_KEY) {
+    if (key == '#') {
+      // Si se presiona '#', finaliza la configuración
+      configuracionCompleta = true;
+      tiempoVerde = input.toInt();
+      Serial.println("\nTiempo de verde establecido en: " + String(tiempoVerde) + " segundos");
+      input = ""; // Resetea la entrada por si necesitas reconfigurar más tarde
+    } else if (isdigit(key)) {
+      // Si es un dígito, añádelo a la entrada
+      input += key;
+      Serial.print(key);
+    }
+  }
+}
+
+  void actualizarSemaforo(Semaforo &semaforo) {
+  unsigned long tiempoActual = millis();
+  
+  switch (semaforo.estado) {
+    case ROJO:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoRojo) {
+        cambiarEstado(semaforo, VERDE);
+      }
+      break;
+    case VERDE:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoVerde) {
+        cambiarEstado(semaforo, VERDE_INTERMITENTE);
+      }
+      break;
+    case VERDE_INTERMITENTE:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoVerde + tiempoIntermitencia) {
+        cambiarEstado(semaforo, AMARILLO);
+      } else {
+        // Activa el parpadeo aquí
+        parpadeoVerde(semaforo);
+      }
+      break;
+    case AMARILLO:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoAmarillo) {
+        cambiarEstado(semaforo, ROJO);
+      }
+      break;
+  }
+}
+
+void cambiarEstado(Semaforo &semaforo, EstadoSemaforo nuevoEstado) {
+  // Apaga todos los LEDs del semáforo
+  digitalWrite(semaforo.pinRojo, LOW);
+  digitalWrite(semaforo.pinVerde, LOW);
+  digitalWrite(semaforo.pinAmarillo, LOW);
+
+  // Establece el nuevo estado
+  semaforo.estado = nuevoEstado;
+  semaforo.tiempoCambio = millis();  // Actualiza el tiempo de cambio
+
+  // Enciende el LED correspondiente al nuevo estado
+  if (nuevoEstado == ROJO) {
+    digitalWrite(semaforo.pinRojo, HIGH);
+  } else if (nuevoEstado == VERDE || nuevoEstado == VERDE_INTERMITENTE) {
+    digitalWrite(semaforo.pinVerde, HIGH);
+  } else if (nuevoEstado == AMARILLO) {
+    digitalWrite(semaforo.pinAmarillo, HIGH);
+  }
+}
+
+void parpadeoVerde(Semaforo &semaforo) {
+  static bool estadoLedVerde = LOW;
+  static unsigned long ultimoCambio = 0;
+  const long intervalo = 500;  // Parpadea cada 500 ms
+
+  unsigned long tiempoActual = millis();
+  if (tiempoActual - ultimoCambio >= intervalo) {
+    estadoLedVerde = !estadoLedVerde;
+    digitalWrite(semaforo.pinVerde, estadoLedVerde);
+    ultimoCambio = tiempoActual;
   }
 }
