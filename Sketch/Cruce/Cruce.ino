@@ -31,7 +31,6 @@ byte rowPins[ROWS] = {2, 3, 4, 5}; // Conectar a los pines de fila del Arduino
 byte colPins[COLS] = {18, 19, 6, 7}; // Conectar a los pines de columna del Arduino
 Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
-
 // Función para manejar el estado de los semáforos
 void estadoSemaforo(int semaforo, char color) {
   // Apaga todos los LEDs de todos los semáforos
@@ -44,13 +43,10 @@ void estadoSemaforo(int semaforo, char color) {
     case 1: pinRojo = R1; pinVerde = G1; pinAmarillo = Y1; break;
     case 2: pinRojo = R2; pinVerde = G2; pinAmarillo = Y2; break;
   }
-
   if(color == 'R') digitalWrite(pinRojo, HIGH);
   if(color == 'G') digitalWrite(pinVerde, HIGH);
   if(color == 'Y') digitalWrite(pinAmarillo, HIGH);
 }
-
-
 
 // Variables para recordar el último semáforo con luz verde
 int ultimoSemaforoConVerde = 0;
@@ -223,7 +219,6 @@ void parpadeoVerde(Semaforo &semaforo) {
   static bool estadoLedVerde = LOW;
   static unsigned long ultimoCambio = 0;
   const long intervalo = 500;  // Parpadea cada 500 ms
-
   unsigned long tiempoActual = millis();
   if (tiempoActual - ultimoCambio >= intervalo) {
     estadoLedVerde = !estadoLedVerde;
@@ -243,14 +238,11 @@ void setup() {
   pinMode(R1, OUTPUT); pinMode(G1, OUTPUT); pinMode(Y1, OUTPUT);
   pinMode(R2, OUTPUT); pinMode(G2, OUTPUT); pinMode(Y2, OUTPUT);
  
-  
   // Configura los semáforos en rojo
   estadoSemaforo(1, 'R');
   estadoSemaforo(2, 'R');
-
-   Serial.begin(9600);
+  Serial.begin(9600);
   while (!Serial); // Para Leonardo/Micro/Zero
-  
   Serial.println("Ingrese el tiempo de verde para los semaforos y presione '#':");
   char key = 0;
   String input = "";
@@ -267,24 +259,19 @@ void setup() {
   }
   tiempoVerde = input.toInt();
   Serial.println("\nTiempo de verde establecido en: " + String(tiempoVerde) + " segundos");
-  
 }
 
 void loop() {
-
   if (!configuracionCompleta) {
     leerTecladoYConfigurar();
   } else {
     unsigned long tiempoActual = millis();
-
   // Lee los sensores
   // Aquí, HIGH significa que un vehículo fue detectado
   bool vehicleAt1 = digitalRead(sens1) == HIGH;
   bool vehicleAt2 = digitalRead(sens2) == HIGH;
-
   actualizarSemaforo(semaforo1);
   actualizarSemaforo(semaforo2);
-
   // Comprobar la prioridad de los semáforos 1 y 3 primero
   if (vehicleAt1 && ultimoSemaforoConVerde != 1) {
     activarSemaforo(1);
@@ -302,37 +289,29 @@ void loop() {
       activarSemaforo(2);
       ultimoSemaforoConVerde = 4;
     }
-
   }
-  
   // Asumamos que simplemente vamos a alternar los semáforos en secuencia: 1, 2, 3, y 4.
   for(int semaforo = 1; semaforo <= 4; semaforo++) {
     // Primero todos en rojo
     estadoSemaforo(semaforo, 'R');
   }
   delay(45000); // Tiempo en rojo
-  
   // Luego, para cada semáforo:
   for(int semaforo = 1; semaforo <= 4; semaforo++) {
     // Verifica si hay un vehículo esperando
     if((semaforo == 1 && vehicleAt1) || 
        (semaforo == 2 && vehicleAt2)) {
-      
       estadoSemaforo(semaforo, 'G'); // Semáforo en verde
       delay((tiempoVerde - 3) * 1000); // Espera el tiempo de verde menos los 3 segundos de intermitencia
-      
       // Intermitencia del verde
       for(int i = 0; i < 6; i++) {
         digitalWrite(G1, (i % 2 == 0) ? HIGH : LOW);
         delay(500);
-      }
-    
+      } 
       estadoSemaforo(semaforo, 'Y'); // Semáforo en amarillo
       delay(tiempoAmarillo * 1000); // Espera el tiempo de amarillo
     }
   }
-
-
   switch(estadoSemaforoActual) {
     case ROJO:
       if (tiempoActual - tiempoInicioCicloActual >= tiempoRojo) {
@@ -341,13 +320,11 @@ void loop() {
         estadoSemaforoActual = VERDE;
       }
       break;
-      
     case VERDE:
       if (tiempoActual - tiempoInicioVerde >= tiempoVerde - tiempoIntermitencia) {
         estadoSemaforoActual = INTERMITENTE;
       }
       break;
-
     case INTERMITENTE:
       if (tiempoActual - tiempoInicioVerde >= tiempoVerde) {
         cambiarSemaforosA(AMARILLO);
@@ -362,7 +339,6 @@ void loop() {
         }
       }
       break;
-
     case AMARILLO:
       if (tiempoActual - tiempoInicioAmarillo >= tiempoAmarillo) {
         cambiarSemaforosA(ROJO);
@@ -370,8 +346,6 @@ void loop() {
         estadoSemaforoActual = ROJO;
       }
       break;
+   }
   }
-
-  }
-
 }
