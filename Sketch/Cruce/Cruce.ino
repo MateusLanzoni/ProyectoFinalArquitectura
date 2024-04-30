@@ -50,43 +50,7 @@ void estadoSemaforo(int semaforo, char color) {
   if(color == 'Y') digitalWrite(pinAmarillo, HIGH);
 }
 
-void setup() {
-  // Inicializa los pines de los sensores
-  pinMode(sens1, INPUT);
-  pinMode(sens2, INPUT);
-  pinMode(sens3, INPUT);
-  pinMode(sens4, INPUT);
-  
-  // Inicializa los pines de los semáforos
-  pinMode(R1, OUTPUT); pinMode(G1, OUTPUT); pinMode(Y1, OUTPUT);
-  pinMode(R2, OUTPUT); pinMode(G2, OUTPUT); pinMode(Y2, OUTPUT);
- 
-  
-  // Configura los semáforos en rojo
-  estadoSemaforo(1, 'R');
-  estadoSemaforo(2, 'R');
 
-   Serial.begin(9600);
-  while (!Serial); // Para Leonardo/Micro/Zero
-  
-  Serial.println("Ingrese el tiempo de verde para los semaforos y presione '#':");
-  char key = 0;
-  String input = "";
-  while (key != '#') {
-    key = keypad.getKey();
-    if (key) {
-      if (key == '*' || key == 'A' || key == 'B' || key == 'C' || key == 'D') {
-        // Ignorar teclas no numéricas y '*'
-        continue;
-      }
-      Serial.print(key);
-      input += key;
-    }
-  }
-  tiempoVerde = input.toInt();
-  Serial.println("\nTiempo de verde establecido en: " + String(tiempoVerde) + " segundos");
-  
-}
 
 // Variables para recordar el último semáforo con luz verde
 int ultimoSemaforoConVerde = 0;
@@ -181,10 +145,130 @@ void cambiarEstado(Semaforo &semaforo, EstadoSemaforo nuevoEstado) {
   digitalWrite(semaforo.pinAmarillo, LOW);
 }
 
-
-
 Semaforo semaforo1 = {2, 3, 4, ROJO, 0};
 bool configuracionCompleta = false;
+
+
+
+void leerTecladoYConfigurar() {
+  static String input = "";
+  char key = keypad.getKey();
+  
+  if (key != NO_KEY) {
+    if (key == '#') {
+      // Si se presiona '#', finaliza la configuración
+      configuracionCompleta = true;
+      tiempoVerde = input.toInt();
+      Serial.println("\nTiempo de verde establecido en: " + String(tiempoVerde) + " segundos");
+      input = ""; // Resetea la entrada por si necesitas reconfigurar más tarde
+    } else if (isdigit(key)) {
+      // Si es un dígito, añádelo a la entrada
+      input += key;
+      Serial.print(key);
+    }
+  }
+}
+
+  void actualizarSemaforo(Semaforo &semaforo) {
+  unsigned long tiempoActual = millis();
+  
+  switch (semaforo.estado) {
+    case ROJO:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoRojo) {
+        cambiarEstado(semaforo, VERDE);
+      }
+      break;
+    case VERDE:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoVerde) {
+        cambiarEstado(semaforo, VERDE_INTERMITENTE);
+      }
+      break;
+    case VERDE_INTERMITENTE:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoVerde + tiempoIntermitencia) {
+        cambiarEstado(semaforo, AMARILLO);
+      } else {
+        // Activa el parpadeo aquí
+        parpadeoVerde(semaforo);
+      }
+      break;
+    case AMARILLO:
+      if (tiempoActual - semaforo.tiempoCambio >= tiempoAmarillo) {
+        cambiarEstado(semaforo, ROJO);
+      }
+      break;
+  }
+}
+
+void cambiarEstado(Semaforo &semaforo, EstadoSemaforo nuevoEstado) {
+  // Apaga todos los LEDs del semáforo
+  digitalWrite(semaforo.pinRojo, LOW);
+  digitalWrite(semaforo.pinVerde, LOW);
+  digitalWrite(semaforo.pinAmarillo, LOW);
+
+  // Establece el nuevo estado
+  semaforo.estado = nuevoEstado;
+  semaforo.tiempoCambio = millis();  // Actualiza el tiempo de cambio
+
+  // Enciende el LED correspondiente al nuevo estado
+  if (nuevoEstado == ROJO) {
+    digitalWrite(semaforo.pinRojo, HIGH);
+  } else if (nuevoEstado == VERDE || nuevoEstado == VERDE_INTERMITENTE) {
+    digitalWrite(semaforo.pinVerde, HIGH);
+  } else if (nuevoEstado == AMARILLO) {
+    digitalWrite(semaforo.pinAmarillo, HIGH);
+  }
+}
+
+void parpadeoVerde(Semaforo &semaforo) {
+  static bool estadoLedVerde = LOW;
+  static unsigned long ultimoCambio = 0;
+  const long intervalo = 500;  // Parpadea cada 500 ms
+
+  unsigned long tiempoActual = millis();
+  if (tiempoActual - ultimoCambio >= intervalo) {
+    estadoLedVerde = !estadoLedVerde;
+    digitalWrite(semaforo.pinVerde, estadoLedVerde);
+    ultimoCambio = tiempoActual;
+  }
+}
+
+void setup() {
+  // Inicializa los pines de los sensores
+  pinMode(sens1, INPUT);
+  pinMode(sens2, INPUT);
+  pinMode(sens3, INPUT);
+  pinMode(sens4, INPUT);
+  
+  // Inicializa los pines de los semáforos
+  pinMode(R1, OUTPUT); pinMode(G1, OUTPUT); pinMode(Y1, OUTPUT);
+  pinMode(R2, OUTPUT); pinMode(G2, OUTPUT); pinMode(Y2, OUTPUT);
+ 
+  
+  // Configura los semáforos en rojo
+  estadoSemaforo(1, 'R');
+  estadoSemaforo(2, 'R');
+
+   Serial.begin(9600);
+  while (!Serial); // Para Leonardo/Micro/Zero
+  
+  Serial.println("Ingrese el tiempo de verde para los semaforos y presione '#':");
+  char key = 0;
+  String input = "";
+  while (key != '#') {
+    key = keypad.getKey();
+    if (key) {
+      if (key == '*' || key == 'A' || key == 'B' || key == 'C' || key == 'D') {
+        // Ignorar teclas no numéricas y '*'
+        continue;
+      }
+      Serial.print(key);
+      input += key;
+    }
+  }
+  tiempoVerde = input.toInt();
+  Serial.println("\nTiempo de verde establecido en: " + String(tiempoVerde) + " segundos");
+  
+}
 
 void loop() {
 
@@ -290,86 +374,4 @@ void loop() {
 
   }
 
-}
-
-void leerTecladoYConfigurar() {
-  static String input = "";
-  char key = keypad.getKey();
-  
-  if (key != NO_KEY) {
-    if (key == '#') {
-      // Si se presiona '#', finaliza la configuración
-      configuracionCompleta = true;
-      tiempoVerde = input.toInt();
-      Serial.println("\nTiempo de verde establecido en: " + String(tiempoVerde) + " segundos");
-      input = ""; // Resetea la entrada por si necesitas reconfigurar más tarde
-    } else if (isdigit(key)) {
-      // Si es un dígito, añádelo a la entrada
-      input += key;
-      Serial.print(key);
-    }
-  }
-}
-
-  void actualizarSemaforo(Semaforo &semaforo) {
-  unsigned long tiempoActual = millis();
-  
-  switch (semaforo.estado) {
-    case ROJO:
-      if (tiempoActual - semaforo.tiempoCambio >= tiempoRojo) {
-        cambiarEstado(semaforo, VERDE);
-      }
-      break;
-    case VERDE:
-      if (tiempoActual - semaforo.tiempoCambio >= tiempoVerde) {
-        cambiarEstado(semaforo, VERDE_INTERMITENTE);
-      }
-      break;
-    case VERDE_INTERMITENTE:
-      if (tiempoActual - semaforo.tiempoCambio >= tiempoVerde + tiempoIntermitencia) {
-        cambiarEstado(semaforo, AMARILLO);
-      } else {
-        // Activa el parpadeo aquí
-        parpadeoVerde(semaforo);
-      }
-      break;
-    case AMARILLO:
-      if (tiempoActual - semaforo.tiempoCambio >= tiempoAmarillo) {
-        cambiarEstado(semaforo, ROJO);
-      }
-      break;
-  }
-}
-
-void cambiarEstado(Semaforo &semaforo, EstadoSemaforo nuevoEstado) {
-  // Apaga todos los LEDs del semáforo
-  digitalWrite(semaforo.pinRojo, LOW);
-  digitalWrite(semaforo.pinVerde, LOW);
-  digitalWrite(semaforo.pinAmarillo, LOW);
-
-  // Establece el nuevo estado
-  semaforo.estado = nuevoEstado;
-  semaforo.tiempoCambio = millis();  // Actualiza el tiempo de cambio
-
-  // Enciende el LED correspondiente al nuevo estado
-  if (nuevoEstado == ROJO) {
-    digitalWrite(semaforo.pinRojo, HIGH);
-  } else if (nuevoEstado == VERDE || nuevoEstado == VERDE_INTERMITENTE) {
-    digitalWrite(semaforo.pinVerde, HIGH);
-  } else if (nuevoEstado == AMARILLO) {
-    digitalWrite(semaforo.pinAmarillo, HIGH);
-  }
-}
-
-void parpadeoVerde(Semaforo &semaforo) {
-  static bool estadoLedVerde = LOW;
-  static unsigned long ultimoCambio = 0;
-  const long intervalo = 500;  // Parpadea cada 500 ms
-
-  unsigned long tiempoActual = millis();
-  if (tiempoActual - ultimoCambio >= intervalo) {
-    estadoLedVerde = !estadoLedVerde;
-    digitalWrite(semaforo.pinVerde, estadoLedVerde);
-    ultimoCambio = tiempoActual;
-  }
 }
