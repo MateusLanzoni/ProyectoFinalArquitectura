@@ -154,23 +154,19 @@ unsigned long ultimoCambioParpadeoVerde = 0; // Última vez que el LED cambió d
 const long intervaloParpadeo = 500; // Intervalo entre parpadeos en milisegundos
 
 void parpadeoVerde(int semaforo) {
-  unsigned long tiempoActual = millis();
-  
-  // Verifica si ha pasado suficiente tiempo para cambiar el estado del LED
-  if (tiempoActual - ultimoCambioParpadeoVerde >= intervaloParpadeo) {
-    // Cambia el estado del LED verde
-    estadoParpadeoVerde = !estadoParpadeoVerde;
-    
-    // Actualiza la última vez que el LED cambió de estado
-    ultimoCambioParpadeoVerde = tiempoActual;
+ static unsigned long previousMillis = 0;
+  const long interval = 500; // intervalo de parpadeo de 500 ms
+  unsigned long currentMillis = millis();
 
-    // Enciende o apaga el LED verde basado en el semáforo y el estado actual del parpadeo
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis; // guarda la última vez que se activó el parpadeo
+    estadoParpadeoVerde = !estadoParpadeoVerde; // cambiar estado de parpadeo
+    // Cambia el estado del LED verde basado en el semáforo y el estado actual del parpadeo
     switch(numSemaforo) {
       case 1: digitalWrite(G1, estadoParpadeoVerde); break;
       case 2: digitalWrite(G2, estadoParpadeoVerde); break;
       case 3: digitalWrite(G3, estadoParpadeoVerde); break;
       case 4: digitalWrite(G4, estadoParpadeoVerde); break;
-      default: break; // En caso de un número de semáforo no válido
     }
   }
 }
@@ -188,7 +184,7 @@ unsigned long tiempoInicioAmarillo;
 unsigned long tiempoInicioRojo;
 
 // Estados de los semáforos
-enum EstadoSemaforo {ROJO, VERDE, AMARILLO, INTERMITENTE};
+enum EstadoSemaforo {ROJO, VERDE_INTERMITENTE, VERDE, AMARILLO};
 EstadoSemaforo estadoSemaforoActual = ROJO;
 
 
